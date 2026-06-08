@@ -77,3 +77,29 @@ def test_get_top_scores_returns_rows(monkeypatch) -> None:
     rows = leaderboard.get_top_scores(limit=20)
     assert len(rows) == 2
     assert rows[0]["score"] == 300
+
+
+def _force_local(monkeypatch) -> None:
+    def _raise() -> None:
+        raise ValueError("no creds")
+
+    monkeypatch.setattr(leaderboard, "get_supabase_client", _raise)
+
+
+def test_active_backend_local_without_creds(monkeypatch) -> None:
+    _force_local(monkeypatch)
+    assert leaderboard.active_backend() == "local"
+
+
+def test_local_fallback_submit_and_read(monkeypatch, tmp_path) -> None:
+    # Point the local store at a throwaway DB and force the local backend.
+    monkeypatch.setattr(leaderboard.local_store, "DB_PATH", tmp_path / "lb.db")
+    _force_local(monkeypatch)
+
+    leaderboard.submit_score(player_name="Felix", score=150, game_name="Hades")
+    leaderboard.submit_score(player_name="Sam", score=300, game_name="Hades")
+
+    rows = leaderboard.get_top_scores(limit=20)
+    assert [r["player_name"] for r in rows] == ["Sam", "Felix"]
+    assert rows[0]["score"] == 300
+    assert "created_at" in rows[0]

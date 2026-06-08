@@ -6,11 +6,18 @@ import pandas as pd
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
-from src.leaderboard import get_top_scores, submit_score
+from src.leaderboard import active_backend, get_top_scores, submit_score
 
 st.set_page_config(page_title="Supabase Leaderboard", page_icon="Trophy", layout="wide")
 st.title("Supabase Real-Time Leaderboard")
 st.caption("Project 03 - Streamlit + Supabase")
+
+if active_backend() == "local":
+    st.info(
+        "Running in **demo mode** with a local SQLite store — no Supabase credentials "
+        "configured. Set `SUPABASE_URL` and `SUPABASE_KEY` to use the cloud database.",
+        icon="🧪",
+    )
 
 with st.sidebar:
     st.header("Display Settings")

@@ -2,11 +2,21 @@ from __future__ import annotations
 
 from typing import Any
 
+from src import local_store
 from src.db import get_supabase_client
 
 TABLE_NAME = "leaderboard"
 MAX_PLAYER_NAME_LEN = 100
 MAX_GAME_NAME_LEN = 100
+
+
+def active_backend() -> str:
+    """Return ``"supabase"`` if credentials are configured, else ``"local"``."""
+    try:
+        get_supabase_client()
+    except ValueError:
+        return "local"
+    return "supabase"
 
 
 def validate_score(score: int) -> None:
@@ -41,7 +51,12 @@ def submit_score(player_name: str, score: int, game_name: str) -> dict[str, Any]
         "game_name": valid_game_name,
     }
 
-    client = get_supabase_client()
+    try:
+        client = get_supabase_client()
+    except ValueError:
+        # No Supabase credentials configured — fall back to the local store.
+        return local_store.insert_score(payload)
+
     result = client.table(TABLE_NAME).insert(payload).execute()
     return result.data[0] if result.data else payload
 
@@ -50,7 +65,11 @@ def get_top_scores(limit: int = 20) -> list[dict[str, Any]]:
     if limit <= 0:
         raise ValueError("limit must be greater than 0")
 
-    client = get_supabase_client()
+    try:
+        client = get_supabase_client()
+    except ValueError:
+        return local_store.top_scores(limit)
+
     result = (
         client.table(TABLE_NAME)
         .select("id, player_name, score, game_name, created_at")
